@@ -8,28 +8,56 @@
 import Foundation
 
 protocol TaskListPresenterProtocol: AnyObject {
-    var view: TaskListViewProtocol? { get set }
     
-    func viewLoaded() async -> TodoData?
-    func didLoadTasks(_: TodoData) async
+    var view: TaskListViewProtocol? { get set }
+    var interactor: TaskListInteractorProtocol? { get set }
+    var router: TaskListRouterProtocol? { get set }
+    func fetchData()
+    func dataLoaded(data: [Todo])
+    func deleteTodo(with id: String)
+    func showEditTaskScreen(todo: Todo)
+    func showNewTaskScreen()
+}
+
+protocol TaskListUpdateDelegate: AnyObject {
+    func didUpdateList()
 }
 
 final class TaskListPresenter: TaskListPresenterProtocol {
-    
+
     weak var view: TaskListViewProtocol?
-    let interactor: TaskListInteractorProtocol
+    var interactor: TaskListInteractorProtocol?
+    var router: TaskListRouterProtocol?
     
-    init(interactor: TaskListInteractorProtocol) {
-        self.interactor = interactor
+    func fetchData() {
+        view?.setState(.loading)
+        interactor?.loadTodos()
     }
     
-    func viewLoaded() async -> TodoData?  {
-        guard let data = await interactor.loadTasksFromAPI() else { return nil }
-        return data
+    func dataLoaded(data: [Todo]) {
+        view?.updateTable(data)
+        view?.setState(.done)
     }
     
-    func didLoadTasks(_ : TodoData) async {
-        view?.showList()
+    func deleteTodo(with id: String) {
+        interactor?.deleteTodo(with: id)
     }
     
+    func showEditTaskScreen(todo: Todo) {
+        guard let view = view else { return }
+        router?.openEditTaskScreen(from: view, for: todo, delegate: self)
+    }
+    
+    func showNewTaskScreen() {
+        guard let view = view else { return }
+        router?.openNewTaskScreen(from: view, delegate: self)
+    }
+    
+}
+
+extension TaskListPresenter: TaskListUpdateDelegate {
+    
+    func didUpdateList() {
+        view?.updateAfterChange()
+    }
 }

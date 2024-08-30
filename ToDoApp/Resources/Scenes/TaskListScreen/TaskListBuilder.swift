@@ -8,16 +8,20 @@
 import UIKit
 
 final class TaskListBuilder {
-    static func build() -> UIViewController {
+    
+    static func build() -> TaskListViewController {
         let apiService = APIService()
         
-        let interector = TaskListInteractor(apiService: apiService)
-        let presenter = TaskListPresenter(interactor: interector)
+        let router = TaskListRouter()
+        let interactor = TaskListInteractor(apiService: apiService)
+        let presenter = TaskListPresenter()
         let vc = TaskListViewController()
         
         vc.presenter = presenter
         presenter.view = vc
-        interector.presenter = presenter
+        presenter.router = router
+        interactor.presenter = presenter
+        presenter.interactor = interactor
         
         return vc
     }

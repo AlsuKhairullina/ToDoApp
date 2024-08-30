@@ -8,25 +8,30 @@
 import Foundation
 
 protocol APIServiceProtocol: AnyObject{
-    func fetchTasks() async throws -> TodoData
+    func fetchTasks(completion: @escaping ([Todo]) -> () )
 }
 
 final class APIService: APIServiceProtocol {
     
-    func fetchTasks() async throws -> TodoData {
+    func fetchTasks(completion: @escaping ([Todo]) -> ()) {
         
-        guard let url = URL(string: "https://dummyjson.com/todos") else {
-            throw URLError(.badURL)
+        guard let url = URL(string: "https://dummyjson.com/todos") else { return }
+        let request = URLRequest(url: url)
+        
+        let backgroundQueue = DispatchQueue.global(qos: .background)
+        
+        backgroundQueue.asyncAfter(deadline: .now() + 1) {
+            URLSession.shared.dataTask(with: request) { data, response, error in
+                if let responseData = data {
+                    do {
+                        let tasksResponse = try JSONDecoder().decode(TodoData.self, from: responseData)
+                        completion(tasksResponse.todos)
+                    } catch let error {
+                        print(error.localizedDescription)
+                    }
+                }
+            }.resume()
         }
-        
-        let (data, response) = try await URLSession.shared.data(from: url)
-        
-        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            throw URLError(.badServerResponse)
-        }
-        
-        let tasksResponse = try JSONDecoder().decode(TodoData.self, from: data)
-        return tasksResponse
     }
 }
 

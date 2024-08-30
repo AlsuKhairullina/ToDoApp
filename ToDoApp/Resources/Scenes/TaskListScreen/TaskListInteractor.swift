@@ -8,7 +8,10 @@
 import Foundation
 
 protocol TaskListInteractorProtocol: AnyObject {
-    func loadTasksFromAPI() async -> TodoData?
+    var presenter: TaskListPresenterProtocol? { get set }
+    func loadTodos()
+    func deleteTodo(with id: String)
+    func loadTasksFromAPI()
     func loadTasksFromCoreData()
 }
 
@@ -21,18 +24,34 @@ final class TaskListInteractor: TaskListInteractorProtocol {
         self.apiService = apiService
     }
     
-    func loadTasksFromAPI() async -> TodoData? {
-        do {
-            let data = try await apiService.fetchTasks()
-            return data
-            
-        } catch {
-            print(error.localizedDescription)
-            return nil
+    func loadTodos() {
+        isFirstLaunch() ? loadTasksFromAPI() : loadTasksFromCoreData()
+    }
+    
+    func loadTasksFromAPI() {
+        apiService.fetchTasks { [weak self] data in
+            self?.presenter?.dataLoaded(data: data)
+            CoreDataService.shared.saveToCoreData(tasks: data)
         }
     }
     
+    func deleteTodo(with id: String) {
+        CoreDataService.shared.deleteTodo(with: id)
+    }
+    
     func loadTasksFromCoreData() {
-        print("core data")
+        CoreDataService.shared.fetchTodos { [weak self] data in
+            self?.presenter?.dataLoaded(data: data)
+        }
+    }
+    
+    func isFirstLaunch() -> Bool {
+        let userDefaults = UserDefaults.standard
+        if userDefaults.bool(forKey: "hasLaunchedBefore") {
+            return false
+        } else {
+            userDefaults.set(true, forKey: "hasLaunchedBefore")
+            return true
+        }
     }
 }
